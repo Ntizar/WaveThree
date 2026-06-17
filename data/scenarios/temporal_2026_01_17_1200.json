@@ -1,0 +1,19 @@
+{
+  "id": "temporal_2026_01_17_1200",
+  "label": "Temporal enero 2026",
+  "location": "zona piloto",
+  "time": "2026-01-17T12:00:00Z",
+  "wave": {
+    "hs": 3.2,
+    "tp": 8.7,
+    "dir": 245,
+    "notes": "Altura significativa 3.2m, periodo pico 8.7s, dirección 245° (SW)"
+  },
+  "wind": {
+    "speed": 17.5,
+    "dir": 240,
+    "notes": "Viento de 17.5 m/s desde el SW"
+  },
+  "bathymetry": "gebco_tile_01.bin",
+  "structure": "dique_piloto.glb"
+}

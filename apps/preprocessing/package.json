@@ -1,0 +1,15 @@
+{
+  "name": "preprocessing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "gebco": "node src/gebco-extract.js",
+    "swan": "node src/swan-parser.js"
+  },
+  "dependencies": {
+    "netcdf": "^0.4.1",
+    "commander": "^12.0.0"
+  }
+}

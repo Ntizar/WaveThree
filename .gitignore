@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+.env
+*.local

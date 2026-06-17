@@ -1,0 +1,21 @@
+{
+  "name": "wave-three",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Visor marino 3D con Three.js, WebGPU y datos oceanográficos",
+  "workspaces": [
+    "apps/web-viewer",
+    "apps/preprocessing"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web-viewer",
+    "build": "npm run build -w apps/web-viewer",
+    "preprocess": "npm run start -w apps/preprocessing"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ntizar/WaveThree.git"
+  },
+  "author": "David Antizar",
+  "license": "UNLICENSED"
+}
