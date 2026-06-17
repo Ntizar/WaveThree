@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "gebco": "node src/gebco-extract.js",
-    "swan": "node src/swan-parser.js"
+    "gebco": "node src/index.js gebco",
+    "scenario": "node src/index.js scenario"
   },
   "dependencies": {
     "netcdfjs": "^4.0.0",
