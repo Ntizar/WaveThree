@@ -3,189 +3,271 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WaveThree — Visor Marino</title>
+  <title>WaveThree — Visor Marino 3D</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #0a0e1a; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { overflow: hidden; background: #0a0e1a; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
     canvas { display: block; }
-
-    /* ── Glassmorphism UI ── */
-    #ui-overlay {
-      position: fixed; top: 20px; left: 20px;
-      background: rgba(8, 16, 36, 0.65);
-      backdrop-filter: blur(20px) saturate(1.4);
-      -webkit-backdrop-filter: blur(20px) saturate(1.4);
-      border: 1px solid rgba(100, 160, 230, 0.15);
-      border-radius: 16px;
-      padding: 24px;
-      color: #d0e0f0;
-      min-width: 280px;
-      font-size: 14px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.05);
-      z-index: 10;
-    }
-    #ui-overlay h1 {
-      font-size: 22px; font-weight: 700; margin-bottom: 2px;
-      background: linear-gradient(135deg, #60a5fa, #38bdf8, #22d3ee);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: -0.5px;
-    }
-    #ui-overlay .sub { color: #6888a8; font-size: 11px; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 1px; }
-
-    /* ── Controls ── */
-    .control-group { margin-top: 14px; }
-    .control-group label {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 12px; color: #7898b8; margin-bottom: 4px;
-    }
-    .control-group label .val { color: #60a5fa; font-weight: 600; font-size: 13px; }
-    .control-group input[type="range"] {
-      width: 100%; margin-top: 2px; accent-color: #38bdf8;
-      height: 4px; -webkit-appearance: none; appearance: none;
-      background: rgba(56, 189, 248, 0.15); border-radius: 2px; outline: none;
-    }
-    .control-group input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 14px; height: 14px;
-      background: #38bdf8; border-radius: 50%; cursor: pointer;
-      box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
-    }
-
-    /* ── Divider ── */
-    .divider {
-      height: 1px; margin: 18px 0;
-      background: linear-gradient(90deg, transparent, rgba(100, 160, 230, 0.2), transparent);
-    }
-
-    /* ── Select ── */
-    .select-group { margin-top: 14px; }
-    .select-group label {
-      display: block; font-size: 12px; color: #7898b8; margin-bottom: 6px;
-    }
-    .select-group select {
-      width: 100%; padding: 8px 12px;
-      background: rgba(10, 20, 40, 0.7);
-      border: 1px solid rgba(100, 160, 230, 0.2);
-      border-radius: 8px; color: #c0d8f0; font-size: 13px;
-      outline: none; cursor: pointer;
-      transition: border-color 0.2s;
-    }
-    .select-group select:hover { border-color: rgba(100, 160, 230, 0.4); }
-    .select-group select:focus { border-color: #38bdf8; }
-    .select-group select option { background: #0a1428; color: #c0d8f0; }
-
-    /* ── Buttons ── */
-    .btn-row { display: flex; gap: 8px; margin-top: 14px; }
-    .btn {
-      flex: 1; padding: 8px 12px;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 8px; color: #60a5fa; font-size: 12px;
-      cursor: pointer; text-align: center;
-      transition: all 0.2s; font-weight: 500;
-    }
-    .btn:hover {
-      background: rgba(56, 189, 248, 0.2);
-      border-color: rgba(56, 189, 248, 0.5);
-      color: #93d0ff;
-    }
-    .btn:active { transform: scale(0.97); }
-
-    /* ── FPS indicator ── */
-    #fps-indicator {
-      position: fixed; top: 20px; right: 20px;
-      background: rgba(8, 16, 36, 0.65);
-      backdrop-filter: blur(20px) saturate(1.4);
-      -webkit-backdrop-filter: blur(20px) saturate(1.4);
-      border: 1px solid rgba(100, 160, 230, 0.15);
-      border-radius: 10px;
-      padding: 10px 16px;
-      color: #60a5fa; font-size: 13px; font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-      z-index: 10;
-    }
-    #fps-indicator .fps-label { color: #5878a0; font-weight: 400; font-size: 11px; }
-    #fps-indicator .fps-value { color: #38bdf8; }
 
     /* ── Loading screen ── */
     #loading {
-      position: fixed; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: linear-gradient(135deg, #060c18, #0a1628);
-      color: #60a5fa; font-size: 22px;
-      z-index: 100; transition: opacity 0.8s;
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a0e1a 0%, #0a1a2a 50%, #0a2a3a 100%);
+      color: #60a5fa;
+      font-size: 22px;
+      font-weight: 300;
+      transition: opacity 0.8s ease, transform 0.8s ease;
+      letter-spacing: 2px;
     }
-    #loading.hidden { opacity: 0; pointer-events: none; }
-    #loading .spinner {
-      width: 40px; height: 40px; margin-bottom: 16px;
-      border: 3px solid rgba(56, 189, 248, 0.15);
-      border-top-color: #38bdf8; border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+    #loading.hidden { opacity: 0; transform: scale(1.05); pointer-events: none; }
+    #loading .logo { font-size: 48px; margin-bottom: 12px; }
+    #loading .bar-container {
+      width: 200px; height: 3px;
+      background: rgba(96, 165, 250, 0.2);
+      border-radius: 2px; margin-top: 20px; overflow: hidden;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading .bar {
+      width: 30%; height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #60a5fa);
+      border-radius: 2px;
+      animation: loadingBar 1.5s ease-in-out infinite;
+    }
+    @keyframes loadingBar {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+    #loading .status { font-size: 13px; color: #4a7aaa; margin-top: 8px; }
 
-    /* ── Status bar ── */
-    #status-bar {
-      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: rgba(8, 16, 36, 0.55);
+    /* ── Panel principal glassmorphism ── */
+    #panel {
+      position: fixed; top: 16px; left: 16px; z-index: 10;
+      width: 280px;
+      background: rgba(8, 16, 30, 0.85);
       backdrop-filter: blur(16px);
-      border: 1px solid rgba(100, 160, 230, 0.12);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(96, 165, 250, 0.12);
+      border-radius: 14px;
+      padding: 18px 20px;
+      color: #c8d8e8;
+      font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+    }
+    #panel.collapsed { transform: translateX(-300px); }
+    #panel::-webkit-scrollbar { width: 4px; }
+    #panel::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 2px; }
+
+    #panel .header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    #panel .header h1 {
+      font-size: 17px; font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+    #panel .header .sub {
+      font-size: 10px; color: #4a6a8a;
+      -webkit-text-fill-color: #4a6a8a;
+      margin-top: -2px;
+    }
+    #panel .toggle-btn {
+      background: none; border: 1px solid rgba(96,165,250,0.2);
+      color: #6a8aaa; cursor: pointer; padding: 4px 8px;
+      border-radius: 6px; font-size: 14px;
+      transition: all 0.2s;
+    }
+    #panel .toggle-btn:hover { background: rgba(96,165,250,0.1); color: #60a5fa; }
+
+    /* ── Secciones ── */
+    .section { margin-bottom: 14px; }
+    .section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #4a6a8a; margin-bottom: 8px; font-weight: 600;
+    }
+    .section-divider {
+      height: 1px; background: linear-gradient(90deg, rgba(96,165,250,0.15), transparent);
+      margin: 10px 0 12px 0;
+    }
+
+    /* ── Sliders ── */
+    .slider-group { margin-bottom: 8px; }
+    .slider-group label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #7a9aba; margin-bottom: 2px;
+    }
+    .slider-group label .val { color: #60a5fa; font-weight: 600; }
+    .slider-group input[type="range"] {
+      width: 100%; height: 4px;
+      -webkit-appearance: none; appearance: none;
+      background: linear-gradient(90deg, #1a3a5a, #3a7aaa);
+      border-radius: 2px; outline: none;
+      accent-color: #38bdf8;
+    }
+    .slider-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      background: radial-gradient(circle, #60a5fa, #3a7aaa);
+      border-radius: 50%; cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.15);
+      box-shadow: 0 0 8px rgba(56,189,248,0.3);
+    }
+
+    /* ── Selector escenarios ── */
+    .scenario-select {
+      width: 100%; padding: 8px 10px;
+      background: rgba(96,165,250,0.08);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 8px; color: #c8d8e8;
+      font-size: 12px; outline: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .scenario-select:focus { border-color: #60a5fa; }
+    .scenario-select option { background: #0a1a2a; color: #c8d8e8; }
+    .scenario-meta {
+      margin-top: 6px; padding: 6px 8px;
+      background: rgba(96,165,250,0.05);
+      border-radius: 6px; font-size: 11px; color: #6a8aaa;
+      line-height: 1.6;
+    }
+    .scenario-meta strong { color: #8abaea; }
+
+    /* ── FPS ── */
+    #fps {
+      position: fixed; top: 16px; right: 16px; z-index: 10;
+      font-size: 12px; font-weight: 600; font-family: 'Courier New', monospace;
+      background: rgba(8, 16, 30, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(96,165,250,0.1);
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #4a8aba;
+      transition: color 0.3s;
+    }
+    #fps.good { color: #4ade80; }
+    #fps.warn { color: #facc15; }
+    #fps.bad { color: #f87171; }
+
+    /* ── Botón reset cámara ── */
+    #reset-cam {
+      position: fixed; bottom: 24px; right: 24px; z-index: 10;
+      background: rgba(8, 16, 30, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(96,165,250,0.15);
       border-radius: 10px;
-      padding: 8px 20px;
-      color: #6888a8; font-size: 12px;
+      padding: 10px 16px;
+      color: #7a9aba; cursor: pointer;
+      font-size: 12px; transition: all 0.2s;
+    }
+    #reset-cam:hover {
+      background: rgba(96,165,250,0.15);
+      color: #60a5fa;
+      border-color: rgba(96,165,250,0.3);
+    }
+
+    /* ── Footer ── */
+    #footer {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
       z-index: 10;
-      transition: opacity 0.4s;
+      font-size: 11px; color: #3a5a7a;
+      background: rgba(8, 16, 30, 0.5);
+      backdrop-filter: blur(8px);
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(96,165,250,0.06);
+      white-space: nowrap;
+    }
+    #footer a { color: #5a8aba; text-decoration: none; }
+    #footer a:hover { color: #60a5fa; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      #panel { width: 240px; left: 8px; top: 8px; padding: 12px 14px; font-size: 12px; }
+      #fps { top: 8px; right: 8px; font-size: 10px; }
+      #footer { font-size: 10px; padding: 4px 12px; }
     }
   </style>
 </head>
 <body>
+  <!-- Loading -->
   <div id="loading">
-    <div class="spinner"></div>
-    🌊 Cargando WaveThree…
+    <div class="logo">🌊</div>
+    <div>WaveThree</div>
+    <div class="bar-container"><div class="bar"></div></div>
+    <div class="status">Iniciando motor 3D…</div>
   </div>
 
-  <div id="ui-overlay">
-    <h1>WaveThree</h1>
-    <div class="sub">visor marino — three.js</div>
+  <!-- FPS counter -->
+  <div id="fps">-- FPS</div>
 
-    <div class="select-group">
-      <label>🌊 Escenario</label>
-      <select id="scenario-select">
-        <option value="temporal">Temporal enero 2026</option>
-        <option value="marfondo">Mar de fondo</option>
-        <option value="calma">Calma</option>
+  <!-- Panel -->
+  <div id="panel">
+    <div class="header">
+      <div>
+        <h1>WaveThree</h1>
+        <div class="sub">visor marino · three.js + webgpu</div>
+      </div>
+      <button class="toggle-btn" id="panel-toggle" title="Ocultar panel">◀</button>
+    </div>
+
+    <!-- Escenarios -->
+    <div class="section">
+      <div class="section-title">Escenario</div>
+      <select class="scenario-select" id="scenario-select">
+        <option value="temporal_2026_01_17_1200">Temporal enero 2026</option>
+        <option value="swell_atlantic">Mar de fondo atlántico</option>
+        <option value="calm_day">Día en calma</option>
+        <option value="storm_extreme">Temporal extremo</option>
       </select>
+      <div class="scenario-meta" id="scenario-meta">
+        <strong>Hs:</strong> 3.2 m · <strong>Tp:</strong> 8.7 s · <strong>Dir:</strong> 245°
+      </div>
     </div>
 
-    <div class="divider"></div>
+    <div class="section-divider"></div>
 
-    <div class="control-group">
-      <label>Altura ola (Hs) <span class="val" id="hs-value">3.2 m</span></label>
-      <input type="range" id="hs-slider" min="0" max="10" step="0.1" value="3.2" />
+    <!-- Oleaje -->
+    <div class="section">
+      <div class="section-title">Oleaje</div>
+      <div class="slider-group">
+        <label>Altura (Hs) <span class="val" id="hs-val">3.2 m</span></label>
+        <input type="range" id="hs-slider" min="0" max="8" step="0.1" value="3.2" />
+      </div>
+      <div class="slider-group">
+        <label>Periodo (Tp) <span class="val" id="tp-val">8.7 s</span></label>
+        <input type="range" id="tp-slider" min="1" max="18" step="0.1" value="8.7" />
+      </div>
+      <div class="slider-group">
+        <label>Dirección <span class="val" id="dir-val">245°</span></label>
+        <input type="range" id="dir-slider" min="0" max="360" step="1" value="245" />
+      </div>
     </div>
 
-    <div class="control-group">
-      <label>Periodo (Tp) <span class="val" id="tp-value">8.7 s</span></label>
-      <input type="range" id="tp-slider" min="1" max="20" step="0.1" value="8.7" />
-    </div>
+    <div class="section-divider"></div>
 
-    <div class="control-group">
-      <label>Dirección <span class="val" id="dir-value">245°</span></label>
-      <input type="range" id="dir-slider" min="0" max="360" step="1" value="245" />
-    </div>
-
-    <div class="btn-row">
-      <div class="btn" id="btn-reset">⟲ Reset cámara</div>
+    <!-- Viento -->
+    <div class="section">
+      <div class="section-title">Viento</div>
+      <div class="slider-group">
+        <label>Velocidad <span class="val" id="wind-val">17.5 m/s</span></label>
+        <input type="range" id="wind-slider" min="0" max="40" step="0.5" value="17.5" />
+      </div>
     </div>
   </div>
 
-  <div id="fps-indicator">
-    <span class="fps-label">FPS </span>
-    <span class="fps-value" id="fps-value">--</span>
-  </div>
+  <!-- Reset camera -->
+  <button id="reset-cam">⟲ Reset cámara</button>
 
-  <div id="status-bar">Arrastra para orbitar · Scroll para zoom</div>
+  <!-- Footer -->
+  <div id="footer">
+    🌊 <a href="https://github.com/Ntizar/WaveThree" target="_blank">WaveThree</a> ·
+    Hecho con ❤️ por David Antizar
+  </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -1,0 +1,8 @@
+{
+  "id": "swell_atlantic",
+  "label": "Mar de fondo atlántico",
+  "location": "Cantábrico",
+  "time": "2026-03-15T08:00:00Z",
+  "wave": { "hs": 1.8, "tp": 12.5, "dir": 310 },
+  "wind": { "speed": 5.0, "dir": 10 }
+}

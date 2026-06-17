@@ -1,0 +1,8 @@
+{
+  "id": "storm_extreme",
+  "label": "Temporal extremo",
+  "location": "Cantábrico",
+  "time": "2026-02-20T06:00:00Z",
+  "wave": { "hs": 6.0, "tp": 14.2, "dir": 300 },
+  "wind": { "speed": 25.0, "dir": 310 }
+}

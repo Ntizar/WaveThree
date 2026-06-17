@@ -1,8 +1,8 @@
 /**
  * WaveThree — Punto de entrada del visor marino
  *
- * Carga la escena, inicializa el océano y el panel de control.
- * Fase 1.1: selector de escenarios, FPS, reset cámara, glassmorphism UI.
+ * Carga la escena, inicializa el océano, conecta la UI.
+ * Fase 1.1: MVP visual mejorado con shader, escenarios, FPS.
  */
 
 import * as THREE from 'three';
@@ -13,17 +13,25 @@ import { createScene } from '../../src/scene/setup.js';
 // ── Escenarios predefinidos ──
 
 const SCENARIOS = {
-  temporal: {
+  temporal_2026_01_17_1200: {
     label: 'Temporal enero 2026',
-    amplitude: 3.2, frequency: 0.4, speed: 0.5, direction: 245,
+    wave: { hs: 3.2, tp: 8.7, dir: 245 },
+    wind: { speed: 17.5, dir: 240 },
   },
-  marfondo: {
-    label: 'Mar de fondo',
-    amplitude: 1.8, frequency: 0.25, speed: 0.3, direction: 270,
+  swell_atlantic: {
+    label: 'Mar de fondo atlántico',
+    wave: { hs: 1.8, tp: 12.5, dir: 310 },
+    wind: { speed: 5.0, dir: 10 },
   },
-  calma: {
-    label: 'Calma',
-    amplitude: 0.5, frequency: 0.15, speed: 0.15, direction: 180,
+  calm_day: {
+    label: 'Día en calma',
+    wave: { hs: 0.5, tp: 4.2, dir: 180 },
+    wind: { speed: 3.0, dir: 160 },
+  },
+  storm_extreme: {
+    label: 'Temporal extremo',
+    wave: { hs: 6.0, tp: 14.2, dir: 300 },
+    wind: { speed: 25.0, dir: 310 },
   },
 };
 
@@ -34,192 +42,170 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+controls.minDistance = 5;
+controls.maxDistance = 120;
 controls.maxPolarAngle = Math.PI / 2.1;
+controls.update();
+
+// ── Estado ──
+
+const state = {
+  scenarioId: 'temporal_2026_01_17_1200',
+  params: {
+    amplitude: 3.2,
+    frequency: 0.4,
+    speed: 0.5,
+    direction: 245,
+    windSpeed: 17.5,
+  },
+};
 
 // ── Océano ──
 
-const params = { amplitude: 3.2, frequency: 0.4, speed: 0.5, direction: 245 };
-const ocean = createGerstnerOcean(params);
+const ocean = createGerstnerOcean(state.params);
 scene.add(ocean.mesh);
 
-// ── Cámara inicial ──
+// ── Función para cargar escenario ──
 
-const cameraDefaultPos = new THREE.Vector3(30, 20, 30);
-const cameraDefaultTarget = new THREE.Vector3(0, 0, 0);
+function loadScenario(id) {
+  const sc = SCENARIOS[id];
+  if (!sc) return;
 
-// ── FPS counter ──
+  state.scenarioId = id;
+  state.params.amplitude = sc.wave.hs;
+  state.params.frequency = 1 / sc.wave.tp;
+  state.params.direction = sc.wave.dir;
+  state.params.windSpeed = sc.wind.speed;
 
+  // Actualizar UI
+  document.getElementById('hs-slider').value = sc.wave.hs;
+  document.getElementById('tp-slider').value = sc.wave.tp;
+  document.getElementById('dir-slider').value = sc.wave.dir;
+  document.getElementById('wind-slider').value = sc.wind.speed;
+
+  document.getElementById('hs-val').textContent = sc.wave.hs.toFixed(1) + ' m';
+  document.getElementById('tp-val').textContent = sc.wave.tp.toFixed(1) + ' s';
+  document.getElementById('dir-val').textContent = sc.wave.dir.toFixed(0) + '°';
+  document.getElementById('wind-val').textContent = sc.wind.speed.toFixed(1) + ' m/s';
+
+  document.getElementById('scenario-meta').innerHTML =
+    `<strong>Hs:</strong> ${sc.wave.hs} m · <strong>Tp:</strong> ${sc.wave.tp} s · <strong>Dir:</strong> ${sc.wave.dir}°` +
+    ` · <strong>Viento:</strong> ${sc.wind.speed} m/s`;
+
+  ocean.update(0, state.params);
+}
+
+// ── UI: Selector de escenarios ──
+
+document.getElementById('scenario-select').addEventListener('change', (e) => {
+  loadScenario(e.target.value);
+  document.getElementById('loading').classList.add('hidden');
+});
+
+// ── UI: Sliders ──
+
+function onSliderChange() {
+  const hs = parseFloat(document.getElementById('hs-slider').value);
+  const tp = parseFloat(document.getElementById('tp-slider').value);
+  const dir = parseFloat(document.getElementById('dir-slider').value);
+  const wind = parseFloat(document.getElementById('wind-slider').value);
+
+  document.getElementById('hs-val').textContent = hs.toFixed(1) + ' m';
+  document.getElementById('tp-val').textContent = tp.toFixed(1) + ' s';
+  document.getElementById('dir-val').textContent = dir.toFixed(0) + '°';
+  document.getElementById('wind-val').textContent = wind.toFixed(1) + ' m/s';
+
+  document.getElementById('scenario-meta').innerHTML =
+    `<strong>Hs:</strong> ${hs.toFixed(1)} m · <strong>Tp:</strong> ${tp.toFixed(1)} s · <strong>Dir:</strong> ${dir.toFixed(0)}°` +
+    ` · <strong>Viento:</strong> ${wind.toFixed(1)} m/s`;
+
+  state.params.amplitude = hs;
+  state.params.frequency = 1 / tp;
+  state.params.direction = dir;
+  state.params.windSpeed = wind;
+}
+
+document.getElementById('hs-slider').addEventListener('input', onSliderChange);
+document.getElementById('tp-slider').addEventListener('input', onSliderChange);
+document.getElementById('dir-slider').addEventListener('input', onSliderChange);
+document.getElementById('wind-slider').addEventListener('input', onSliderChange);
+
+// ── UI: Panel toggle ──
+
+document.getElementById('panel-toggle').addEventListener('click', () => {
+  const panel = document.getElementById('panel');
+  panel.classList.toggle('collapsed');
+  document.getElementById('panel-toggle').textContent =
+    panel.classList.contains('collapsed') ? '▶' : '◀';
+});
+
+// ── UI: Reset cámara ──
+
+document.getElementById('reset-cam').addEventListener('click', () => {
+  camera.position.set(30, 18, 30);
+  controls.target.set(0, 0, 0);
+  controls.update();
+});
+
+// ── UI: FPS counter ──
+
+const fpsEl = document.getElementById('fps');
 let frameCount = 0;
-let lastFpsTime = performance.now();
-const fpsValueEl = document.getElementById('fps-value');
+let fpsTime = 0;
 
-function updateFPS() {
+function updateFPS(time) {
   frameCount++;
-  const now = performance.now();
-  if (now - lastFpsTime >= 500) {
-    const fps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
-    fpsValueEl.textContent = fps;
-    // Color según rendimiento
-    if (fps >= 50) {
-      fpsValueEl.style.color = '#38bdf8';
-    } else if (fps >= 30) {
-      fpsValueEl.style.color = '#f59e0b';
-    } else {
-      fpsValueEl.style.color = '#ef4444';
-    }
+  if (time - fpsTime >= 1.0) {
+    const fps = Math.round(frameCount / (time - fpsTime));
+    fpsEl.textContent = fps + ' FPS';
+    fpsEl.className = fps >= 50 ? 'good' : fps >= 30 ? 'warn' : 'bad';
     frameCount = 0;
-    lastFpsTime = now;
+    fpsTime = time;
   }
 }
 
-// ── UI Elements ──
+// ── Keyboard shortcuts ──
 
-const hsSlider = document.getElementById('hs-slider');
-const tpSlider = document.getElementById('tp-slider');
-const dirSlider = document.getElementById('dir-slider');
-const hsValue = document.getElementById('hs-value');
-const tpValue = document.getElementById('tp-value');
-const dirValue = document.getElementById('dir-value');
-const scenarioSelect = document.getElementById('scenario-select');
-const btnReset = document.getElementById('btn-reset');
-const statusBar = document.getElementById('status-bar');
-
-// ── Sliders ──
-
-hsSlider.addEventListener('input', () => {
-  const v = parseFloat(hsSlider.value);
-  hsValue.textContent = v.toFixed(1) + ' m';
-  params.amplitude = v;
-});
-
-tpSlider.addEventListener('input', () => {
-  const v = parseFloat(tpSlider.value);
-  tpValue.textContent = v.toFixed(1) + ' s';
-  params.frequency = 1 / v;
-});
-
-dirSlider.addEventListener('input', () => {
-  const v = parseFloat(dirSlider.value);
-  dirValue.textContent = v.toFixed(0) + '°';
-  params.direction = v;
-});
-
-// ── Scenario selector ──
-
-function loadScenario(key) {
-  const scenario = SCENARIOS[key];
-  if (!scenario) return;
-
-  params.amplitude = scenario.amplitude;
-  params.frequency = scenario.frequency;
-  params.speed = scenario.speed;
-  params.direction = scenario.direction;
-
-  // Update sliders
-  hsSlider.value = scenario.amplitude;
-  tpSlider.value = (1 / scenario.frequency).toFixed(1);
-  dirSlider.value = scenario.direction;
-
-  hsValue.textContent = scenario.amplitude.toFixed(1) + ' m';
-  tpValue.textContent = (1 / scenario.frequency).toFixed(1) + ' s';
-  dirValue.textContent = scenario.direction.toFixed(0) + '°';
-
-  showStatus('Escenario: ' + scenario.label);
-}
-
-scenarioSelect.addEventListener('change', () => {
-  loadScenario(scenarioSelect.value);
-});
-
-// ── Reset camera ──
-
-btnReset.addEventListener('click', () => {
-  // Smooth camera reset using tween-like approach
-  const startPos = camera.position.clone();
-  const startTarget = controls.target.clone();
-  const duration = 800; // ms
-  const startTime = performance.now();
-
-  function animateReset() {
-    const elapsed = performance.now() - startTime;
-    const t = Math.min(elapsed / duration, 1.0);
-    // Ease out cubic
-    const ease = 1 - Math.pow(1 - t, 3);
-
-    camera.position.lerpVectors(startPos, cameraDefaultPos, ease);
-    controls.target.lerpVectors(startTarget, cameraDefaultTarget, ease);
-    controls.update();
-
-    if (t < 1.0) {
-      requestAnimationFrame(animateReset);
-    } else {
-      showStatus('Cámara restaurada');
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    document.getElementById('reset-cam').click();
+  }
+  if (e.key >= '1' && e.key <= '4') {
+    const keys = Object.keys(SCENARIOS);
+    const idx = parseInt(e.key) - 1;
+    if (idx < keys.length) {
+      document.getElementById('scenario-select').value = keys[idx];
+      loadScenario(keys[idx]);
     }
   }
-
-  animateReset();
 });
 
-// ── Status bar helper ──
-
-function showStatus(msg) {
-  statusBar.textContent = msg;
-  statusBar.style.opacity = '1';
-  clearTimeout(showStatus._timer);
-  showStatus._timer = setTimeout(() => {
-    statusBar.style.opacity = '0.5';
-  }, 3000);
-}
-
-// ── Load scenario from JSON ──
-
-async function loadScenarioJSON(path) {
-  try {
-    const resp = await fetch(path);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-
-    if (data.wave) {
-      params.amplitude = data.wave.hs || params.amplitude;
-      params.frequency = 1 / (data.wave.tp || 1 / params.frequency);
-      params.direction = data.wave.dir || params.direction;
-
-      hsSlider.value = params.amplitude;
-      tpSlider.value = (1 / params.frequency).toFixed(1);
-      dirSlider.value = params.direction;
-
-      hsValue.textContent = params.amplitude.toFixed(1) + ' m';
-      tpValue.textContent = (1 / params.frequency).toFixed(1) + ' s';
-      dirValue.textContent = params.direction.toFixed(0) + '°';
-
-      showStatus(`Cargado: ${data.label || path}`);
-    }
-  } catch (err) {
-    console.warn('⚠️ No se pudo cargar escenario JSON:', err.message);
-  }
-}
-
-// ── Loop ──
+// ── Animación ──
 
 const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
-  ocean.update(t, params);
-  ocean.setCameraPos(camera.position);
+
+  ocean.update(t);
   controls.update();
   renderer.render(scene, camera);
-  updateFPS();
+
+  updateFPS(t);
 }
 
 animate();
 
-// ── Loading screen ──
+// ── Ocultar loading ──
 
-document.getElementById('loading').classList.add('hidden');
-console.log('🌊 WaveThree — Fase 1.1 iniciado');
+setTimeout(() => {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('loading').querySelector('.status').textContent = '¡Listo!';
+}, 800);
 
-// ── Intentar cargar JSON del escenario temporal ──
+// Cargar escenario inicial
+loadScenario('temporal_2026_01_17_1200');
 
-loadScenarioJSON('/data/scenarios/temporal_2026_01_17_1200.json');
+console.log('🌊 WaveThree — MVP visual mejorado iniciado');
+console.log(`📊 Escenario inicial: ${state.params.amplitude}m Hs, ${(1/state.params.frequency).toFixed(1)}s Tp`);

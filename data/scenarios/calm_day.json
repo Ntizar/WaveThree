@@ -1,0 +1,8 @@
+{
+  "id": "calm_day",
+  "label": "Día en calma",
+  "location": "Cantábrico",
+  "time": "2026-06-10T14:00:00Z",
+  "wave": { "hs": 0.5, "tp": 4.2, "dir": 180 },
+  "wind": { "speed": 3.0, "dir": 160 }
+}
