@@ -3,6 +3,7 @@
  *
  * Carga la escena, inicializa el océano, conecta la UI.
  * Fase 3: toggle Gerstner ↔ Espectral (JONSWAP + FFT 2D CPU).
+ * Fase 4: estructuras costeras (dique, muelle), espuma dinámica, spray.
  */
 
 import * as THREE from 'three';
@@ -12,6 +13,9 @@ import { createSpectralOcean } from '../../../src/ocean/spectral-ocean.js';
 import { createScene } from '../../../src/scene/setup.js';
 import { loadAndCreateBathymetry } from '../../../src/bathymetry/index.js';
 import { loadScenariosList, scenarioToWaveParams } from '../../../src/loaders/index.js';
+import { createBreakwater, createPier } from '../../../src/structures/index.js';
+import { createFoamSystem } from '../../../src/structures/foam.js';
+import { createSpraySystem } from '../../../src/structures/splash.js';
 
 // ── Inicialización escena ────────────────────────────────────────────
 
@@ -31,6 +35,7 @@ const state = {
   scenarioId: null,
   scenarioMeta: null,
   oceanMode: 'gerstner', // 'gerstner' | 'spectral'
+  showStructures: true,
   params: {
     amplitude: 0,
     frequency: 0.4,
@@ -113,6 +118,65 @@ async function loadBathymetry() {
 }
 
 loadBathymetry();
+
+// ── Estructuras costeras (Fase 4) ────────────────────────────────────
+
+let breakwater = null;
+let pier = null;
+let structuresGroup = new THREE.Group();
+structuresGroup.name = 'coastal-structures';
+
+function initStructures() {
+  // Dique en talud — lado izquierdo del mar
+  breakwater = createBreakwater({
+    length: 45,
+    height: 5,
+    baseWidth: 10,
+    topWidth: 2.5,
+    positionX: -15,
+    positionZ: -38,
+    positionY: -1,
+    scene: structuresGroup,
+  });
+
+  // Muelle/espigón — lateral derecho
+  pier = createPier({
+    length: 22,
+    width: 3,
+    height: 1.5,
+    positionX: 20,
+    positionZ: -30,
+    rotationY: -0.3,
+    scene: structuresGroup,
+  });
+
+  scene.add(structuresGroup);
+  console.log('🏗️ Estructuras costeras añadidas');
+}
+
+initStructures();
+
+// ── Sistema de espuma (Fase 4) ───────────────────────────────────────
+
+let foamSystem = null;
+
+function initFoam() {
+  foamSystem = createFoamSystem(scene);
+  console.log('🫧 Sistema de espuma inicializado');
+}
+
+initFoam();
+
+// ── Sistema de spray (Fase 4) ────────────────────────────────────────
+
+let spraySystem = null;
+
+function initSpray() {
+  spraySystem = createSpraySystem(scene);
+  console.log('💦 Sistema de spray inicializado');
+}
+
+initSpray();
 
 // ── Gestión de escenarios ───────────────────────────────────────────
 
@@ -314,10 +378,8 @@ document.getElementById('ocean-mode-toggle').addEventListener('click', () => {
     fpsEl.textContent = 'Calculando FFT…';
     fpsEl.className = 'warn';
 
-    // Crear océano espectral (puede tardar unos frames)
     createOcean('spectral');
 
-    // Actualizar metadatos
     updateScenarioMeta({
       location: state.scenarioMeta?.location || 'Personalizado',
       time: state.scenarioMeta?.time || new Date().toISOString(),
@@ -342,12 +404,28 @@ document.getElementById('ocean-mode-toggle').addEventListener('click', () => {
   }
 });
 
+// ── UI: Toggle estructuras (Fase 4) ─────────────────────────────────
+
+document.getElementById('structures-toggle').addEventListener('click', () => {
+  state.showStructures = !state.showStructures;
+  structuresGroup.visible = state.showStructures;
+
+  const btn = document.getElementById('structures-toggle');
+  btn.textContent = state.showStructures ? '🏗️ Ocultar estructuras' : '🏗️ Mostrar estructuras';
+
+  if (state.showStructures) {
+    console.log('🏗️ Estructuras visibles');
+  } else {
+    console.log('🏗️ Estructuras ocultas');
+  }
+});
+
 // ── UI: FPS counter ─────────────────────────────────────────────────
 
 const fpsEl = document.getElementById('fps');
 let frameCount = 0;
 let fpsTime = 0;
-let fftFrameCount = 0; // contador de frames de FFT para modo espectral
+let fftFrameCount = 0;
 
 function updateFPS(time) {
   frameCount++;
@@ -369,6 +447,9 @@ document.addEventListener('keydown', async (e) => {
   if (e.key === 's' || e.key === 'S') {
     document.getElementById('ocean-mode-toggle').click();
   }
+  if (e.key === 'b' || e.key === 'B') {
+    document.getElementById('structures-toggle').click();
+  }
   if (e.key >= '1' && e.key <= '9') {
     const idx = parseInt(e.key) - 1;
     if (idx < availableScenarios.length) {
@@ -386,12 +467,30 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
+  const dt = clock.getDelta();
 
   // Actualizar océano activo
   if (state.oceanMode === 'gerstner' && ocean) {
     ocean.update(t);
   } else if (state.oceanMode === 'spectral' && spectralOcean) {
     spectralOcean.update(t);
+  }
+
+  // Actualizar espuma y spray (Fase 4)
+  if (state.showStructures && foamSystem && spraySystem) {
+    // Usar la altura de ola como parámetro de impacto
+    const waveHeight = state.params.amplitude || 3.2;
+
+    // Posición del dique para emisión localizada
+    const bwPos = breakwater?.userData?.breakwater;
+    const structurePos = bwPos ? {
+      x: bwPos.positionX,
+      z: bwPos.positionZ,
+    } : null;
+
+    // Actualizar sistemas de partículas
+    foamSystem.update(dt, waveHeight, structurePos);
+    spraySystem.update(dt, waveHeight, structurePos);
   }
 
   controls.update();
@@ -413,4 +512,4 @@ setTimeout(() => {
 
 initScenarios();
 
-console.log('🌊 WaveThree — Visor marino 3D iniciado');
+console.log('🌊 WaveThree — Visor marino 3D iniciado (Fase 4: estructuras + espuma + spray)');

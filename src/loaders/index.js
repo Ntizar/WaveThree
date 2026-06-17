@@ -120,6 +120,7 @@ export async function loadScenariosList(basePath = '../../data/scenarios') {
     'swell_atlantic',
     'calm_day',
     'storm_extreme',
+    'port_scene',
   ];
 
   const results = [];

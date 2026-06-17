@@ -185,6 +185,21 @@
       border-color: rgba(96,165,250,0.3);
     }
 
+    /* ── Botón estructuras (Fase 4) ── */
+    #structures-toggle {
+      width: 100%; padding: 8px 10px;
+      background: rgba(249, 115, 22, 0.1);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+      border-radius: 8px; color: #f97316;
+      font-size: 12px; cursor: pointer;
+      text-align: center; transition: all 0.2s;
+      font-weight: 600;
+    }
+    #structures-toggle:hover {
+      background: rgba(249, 115, 22, 0.2);
+      border-color: rgba(249, 115, 22, 0.4);
+    }
+
     /* ── Footer ── */
     #footer {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -238,6 +253,7 @@
         <option value="swell_atlantic">Mar de fondo atlántico</option>
         <option value="calm_day">Día en calma</option>
         <option value="storm_extreme">Temporal extremo</option>
+        <option value="port_scene">Puerto con dique</option>
       </select>
       <div class="scenario-meta" id="scenario-meta">
         <strong>📍 Cantábrico</strong> · 17/01/2026 12:00<br>
@@ -283,6 +299,15 @@
       <div class="section-title">Motor oceánico</div>
       <button id="ocean-mode-toggle">🌊 <span id="ocean-mode-label">Gerstner</span></button>
       <div style="font-size:10px;color:#4a6a8a;margin-top:4px;">Tecla: S para alternar</div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Estructuras (Fase 4) -->
+    <div class="section">
+      <div class="section-title">Estructuras costeras</div>
+      <button id="structures-toggle">🏗️ Ocultar estructuras</button>
+      <div style="font-size:10px;color:#4a6a8a;margin-top:4px;">Tecla: B para alternar</div>
     </div>
   </div>
 

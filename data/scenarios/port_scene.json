@@ -1,0 +1,9 @@
+{
+  "id": "port_scene",
+  "label": "Puerto con dique",
+  "location": "Cantábrico",
+  "time": "2026-04-20T10:00:00Z",
+  "wave": { "hs": 2.5, "tp": 10.0, "dir": 290 },
+  "wind": { "speed": 12.0, "dir": 280 },
+  "structure": "breakwater"
+}
