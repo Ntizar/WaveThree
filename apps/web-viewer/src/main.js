@@ -2,8 +2,8 @@
  * WaveThree — Punto de entrada del visor marino
  *
  * Carga la escena, inicializa el océano, conecta la UI.
- * Fase 1.1: MVP visual mejorado con shader, escenarios, FPS.
- * Fase 2.1: Batimetría 3D — heightmap loader, mesh por profundidad, demo sintética.
+ * Fase 2.2: Escenarios reales — loader funcional, selector conectado,
+ * metadatos dinámicos, carga desde JSON en data/scenarios/.
  */
 
 import * as THREE from 'three';
@@ -11,33 +11,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGerstnerOcean } from '../../../src/ocean/gerstner.js';
 import { createScene } from '../../../src/scene/setup.js';
 import { loadAndCreateBathymetry } from '../../../src/bathymetry/index.js';
+import { loadScenariosList, scenarioToWaveParams } from '../../../src/loaders/index.js';
 
-// ── Escenarios predefinidos ──────────────────────────────────────────
-
-const SCENARIOS = {
-  temporal_2026_01_17_1200: {
-    label: 'Temporal enero 2026',
-    wave: { hs: 3.2, tp: 8.7, dir: 245 },
-    wind: { speed: 17.5, dir: 240 },
-  },
-  swell_atlantic: {
-    label: 'Mar de fondo atlántico',
-    wave: { hs: 1.8, tp: 12.5, dir: 310 },
-    wind: { speed: 5.0, dir: 10 },
-  },
-  calm_day: {
-    label: 'Día en calma',
-    wave: { hs: 0.5, tp: 4.2, dir: 180 },
-    wind: { speed: 3.0, dir: 160 },
-  },
-  storm_extreme: {
-    label: 'Temporal extremo',
-    wave: { hs: 6.0, tp: 14.2, dir: 300 },
-    wind: { speed: 25.0, dir: 310 },
-  },
-};
-
-// ── Inicialización ───────────────────────────────────────────────────
+// ── Inicialización escena ────────────────────────────────────────────
 
 const { scene, camera, renderer } = createScene();
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -52,9 +28,10 @@ controls.update();
 // ── Estado ───────────────────────────────────────────────────────────
 
 const state = {
-  scenarioId: 'temporal_2026_01_17_1200',
+  scenarioId: null,
+  scenarioMeta: null,
   params: {
-    amplitude: 3.2,
+    amplitude: 0,
     frequency: 0.4,
     speed: 0.5,
     direction: 245,
@@ -74,8 +51,6 @@ let bathymetryMesh = null;
 async function loadBathymetry() {
   try {
     console.log('🌊 Cargando batimetría de demostración...');
-
-    // Cargar desde public/ (sirve tanto en dev como en dist)
     const bathyUrl = '/demo-bathymetry.bin';
 
     const mesh = await loadAndCreateBathymetry(bathyUrl, {
@@ -88,64 +63,138 @@ async function loadBathymetry() {
       scene,
     });
 
-    // Posicionar la batimetría bajo el nivel del mar
-    // El océano está en y=0 (aprox), la batimetría debe estar por debajo
     mesh.position.y = -2;
     mesh.position.x = 0;
     mesh.position.z = 0;
 
     scene.add(mesh);
     bathymetryMesh = mesh;
-
-    console.log('✅ Batimetría cargada:', mesh.userData.bathymetry);
+    console.log('✅ Batimetría cargada');
   } catch (err) {
     console.warn('⚠️ No se pudo cargar la batimetría:', err.message);
   }
 }
 
-// Cargar batimetría asíncronamente
 loadBathymetry();
 
-// ── Función para cargar escenario ────────────────────────────────────
+// ── Gestión de escenarios ───────────────────────────────────────────
 
-function loadScenario(id) {
-  const sc = SCENARIOS[id];
-  if (!sc) return;
+let availableScenarios = [];
 
-  state.scenarioId = id;
-  state.params.amplitude = sc.wave.hs;
-  state.params.frequency = 1 / sc.wave.tp;
-  state.params.direction = sc.wave.dir;
-  state.params.windSpeed = sc.wind.speed;
+/**
+ * Carga la lista de escenarios disponibles desde data/scenarios/*.json
+ * y popula el selector del DOM.
+ */
+async function initScenarios() {
+  try {
+    availableScenarios = await loadScenariosList();
+    populateScenarioSelector(availableScenarios);
 
-  // Actualizar UI
-  document.getElementById('hs-slider').value = sc.wave.hs;
-  document.getElementById('tp-slider').value = sc.wave.tp;
-  document.getElementById('dir-slider').value = sc.wave.dir;
-  document.getElementById('wind-slider').value = sc.wind.speed;
-
-  document.getElementById('hs-val').textContent = sc.wave.hs.toFixed(1) + ' m';
-  document.getElementById('tp-val').textContent = sc.wave.tp.toFixed(1) + ' s';
-  document.getElementById('dir-val').textContent = sc.wave.dir.toFixed(0) + '°';
-  document.getElementById('wind-val').textContent = sc.wind.speed.toFixed(1) + ' m/s';
-
-  document.getElementById('scenario-meta').innerHTML =
-    `<strong>Hs:</strong> ${sc.wave.hs} m · <strong>Tp:</strong> ${sc.wave.tp} s · <strong>Dir:</strong> ${sc.wave.dir}°` +
-    ` · <strong>Viento:</strong> ${sc.wind.speed} m/s`;
-
-  ocean.update(0, state.params);
+    if (availableScenarios.length > 0) {
+      // Cargar el primer escenario por defecto
+      await selectScenario(availableScenarios[0].id);
+      console.log(`✅ ${availableScenarios.length} escenarios cargados`);
+    } else {
+      console.warn('⚠️ No se encontraron escenarios');
+    }
+  } catch (err) {
+    console.error('❌ Error al cargar escenarios:', err);
+  }
 }
 
-// ── UI: Selector de escenarios ──────────────────────────────────────
+/**
+ * Pobla el <select> de escenarios con las opciones disponibles.
+ */
+function populateScenarioSelector(scenarios) {
+  const select = document.getElementById('scenario-select');
+  select.innerHTML = '';
 
-document.getElementById('scenario-select').addEventListener('change', (e) => {
-  loadScenario(e.target.value);
-  document.getElementById('loading').classList.add('hidden');
-});
+  for (const sc of scenarios) {
+    const option = document.createElement('option');
+    option.value = sc.id;
+    option.textContent = sc.label;
+    select.appendChild(option);
+  }
+}
 
-// ── UI: Sliders ─────────────────────────────────────────────────────
+/**
+ * Selecciona y carga un escenario por ID.
+ * Lee el JSON, convierte a wave params, actualiza la escena y la UI.
+ */
+async function selectScenario(id) {
+  try {
+    const sc = await loadScenarioFromId(id);
+    const params = scenarioToWaveParams(sc);
 
-function onSliderChange() {
+    state.scenarioId = id;
+    state.scenarioMeta = sc;
+
+    // Actualizar estado
+    state.params.amplitude = params.amplitude;
+    state.params.frequency = params.frequency;
+    state.params.direction = params.direction;
+    state.params.windSpeed = params.windSpeed;
+
+    // Actualizar sliders del DOM
+    document.getElementById('hs-slider').value = sc.wave.hs;
+    document.getElementById('tp-slider').value = sc.wave.tp;
+    document.getElementById('dir-slider').value = sc.wave.dir;
+    document.getElementById('wind-slider').value = sc.wind.speed;
+
+    // Actualizar valores mostrados
+    updateSliderLabels();
+
+    // Actualizar metadatos del escenario
+    updateScenarioMeta(sc);
+
+    // Actualizar el océano
+    ocean.update(0, state.params);
+  } catch (err) {
+    console.error(`❌ Error al cargar escenario "${id}":`, err.message);
+  }
+}
+
+/**
+ * Carga un escenario JSON desde su ID usando la ruta relativa.
+ */
+async function loadScenarioFromId(id) {
+  const response = await fetch(`../../data/scenarios/${id}.json`);
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar escenario "${id}" (HTTP ${response.status})`);
+  }
+  const data = await response.json();
+
+  // Validación básica
+  if (!data.wave || !data.wind) {
+    throw new Error(`Escenario "${id}" no tiene campos wave/wind`);
+  }
+  if (typeof data.wave.hs !== 'number' || typeof data.wave.tp !== 'number') {
+    throw new Error(`Escenario "${id}" tiene campos wave inválidos`);
+  }
+
+  return data;
+}
+
+/**
+ * Actualiza el panel de metadatos con info del escenario activo.
+ */
+function updateScenarioMeta(sc) {
+  const metaEl = document.getElementById('scenario-meta');
+  const dateStr = new Date(sc.time).toLocaleString('es-ES', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  metaEl.innerHTML =
+    `<div style="margin-bottom:4px;"><strong>📍 ${sc.location}</strong> · ${dateStr}</div>` +
+    `<div><strong>Hs:</strong> ${sc.wave.hs.toFixed(1)} m · <strong>Tp:</strong> ${sc.wave.tp.toFixed(1)} s · <strong>Dir:</strong> ${sc.wave.dir}°</div>` +
+    `<div><strong>Viento:</strong> ${sc.wind.speed.toFixed(1)} m/s desde ${sc.wind.dir}°</div>`;
+}
+
+/**
+ * Actualiza los labels de los sliders con los valores actuales.
+ */
+function updateSliderLabels() {
   const hs = parseFloat(document.getElementById('hs-slider').value);
   const tp = parseFloat(document.getElementById('tp-slider').value);
   const dir = parseFloat(document.getElementById('dir-slider').value);
@@ -156,14 +205,50 @@ function onSliderChange() {
   document.getElementById('dir-val').textContent = dir.toFixed(0) + '°';
   document.getElementById('wind-val').textContent = wind.toFixed(1) + ' m/s';
 
-  document.getElementById('scenario-meta').innerHTML =
-    `<strong>Hs:</strong> ${hs.toFixed(1)} m · <strong>Tp:</strong> ${tp.toFixed(1)} s · <strong>Dir:</strong> ${dir.toFixed(0)}°` +
-    ` · <strong>Viento:</strong> ${wind.toFixed(1)} m/s`;
+  // Si no hay escenario cargado, mostrar valores de sliders
+  if (!state.scenarioMeta) {
+    updateScenarioMeta({
+      location: 'Personalizado',
+      time: new Date().toISOString(),
+      wave: { hs, tp, dir },
+      wind: { speed: wind, dir: 0 },
+    });
+  }
+}
+
+// ── UI: Selector de escenarios ──────────────────────────────────────
+
+document.getElementById('scenario-select').addEventListener('change', async (e) => {
+  await selectScenario(e.target.value);
+  document.getElementById('loading').classList.add('hidden');
+});
+
+// ── UI: Sliders ─────────────────────────────────────────────────────
+
+function onSliderChange() {
+  updateSliderLabels();
+
+  const hs = parseFloat(document.getElementById('hs-slider').value);
+  const tp = parseFloat(document.getElementById('tp-slider').value);
+  const dir = parseFloat(document.getElementById('dir-slider').value);
+  const wind = parseFloat(document.getElementById('wind-slider').value);
 
   state.params.amplitude = hs;
   state.params.frequency = 1 / tp;
   state.params.direction = dir;
   state.params.windSpeed = wind;
+
+  // Si estamos en modo personalizado (sin escenario), actualizar meta
+  if (!state.scenarioId) {
+    updateScenarioMeta({
+      location: 'Personalizado',
+      time: new Date().toISOString(),
+      wave: { hs, tp, dir },
+      wind: { speed: wind, dir: 0 },
+    });
+  }
+
+  ocean.update(0, state.params);
 }
 
 document.getElementById('hs-slider').addEventListener('input', onSliderChange);
@@ -207,16 +292,16 @@ function updateFPS(time) {
 
 // ── Keyboard shortcuts ──────────────────────────────────────────────
 
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
   if (e.key === 'r' || e.key === 'R') {
     document.getElementById('reset-cam').click();
   }
-  if (e.key >= '1' && e.key <= '4') {
-    const keys = Object.keys(SCENARIOS);
+  if (e.key >= '1' && e.key <= '9') {
     const idx = parseInt(e.key) - 1;
-    if (idx < keys.length) {
-      document.getElementById('scenario-select').value = keys[idx];
-      loadScenario(keys[idx]);
+    if (idx < availableScenarios.length) {
+      const sc = availableScenarios[idx];
+      document.getElementById('scenario-select').value = sc.id;
+      await selectScenario(sc.id);
     }
   }
 });
@@ -245,8 +330,8 @@ setTimeout(() => {
   document.getElementById('loading').querySelector('.status').textContent = '¡Listo!';
 }, 800);
 
-// Cargar escenario inicial
-loadScenario('temporal_2026_01_17_1200');
+// ── Arranque ─────────────────────────────────────────────────────────
 
-console.log('🌊 WaveThree — MVP visual mejorado iniciado');
-console.log(`📊 Escenario inicial: ${state.params.amplitude}m Hs, ${(1/state.params.frequency).toFixed(1)}s Tp`);
+initScenarios();
+
+console.log('🌊 WaveThree — Visor marino 3D iniciado');
