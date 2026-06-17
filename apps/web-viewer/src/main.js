@@ -2,13 +2,13 @@
  * WaveThree — Punto de entrada del visor marino
  *
  * Carga la escena, inicializa el océano, conecta la UI.
- * Fase 2.2: Escenarios reales — loader funcional, selector conectado,
- * metadatos dinámicos, carga desde JSON en data/scenarios/.
+ * Fase 3: toggle Gerstner ↔ Espectral (JONSWAP + FFT 2D CPU).
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGerstnerOcean } from '../../../src/ocean/gerstner.js';
+import { createSpectralOcean } from '../../../src/ocean/spectral-ocean.js';
 import { createScene } from '../../../src/scene/setup.js';
 import { loadAndCreateBathymetry } from '../../../src/bathymetry/index.js';
 import { loadScenariosList, scenarioToWaveParams } from '../../../src/loaders/index.js';
@@ -30,6 +30,7 @@ controls.update();
 const state = {
   scenarioId: null,
   scenarioMeta: null,
+  oceanMode: 'gerstner', // 'gerstner' | 'spectral'
   params: {
     amplitude: 0,
     frequency: 0.4,
@@ -41,8 +42,44 @@ const state = {
 
 // ── Océano ───────────────────────────────────────────────────────────
 
-const ocean = createGerstnerOcean(state.params);
-scene.add(ocean.mesh);
+let ocean = null;
+let spectralOcean = null;
+
+function createOcean(mode) {
+  // Destruir océano anterior si existe
+  if (ocean) {
+    scene.remove(ocean.mesh);
+    ocean.mesh.geometry.dispose();
+    ocean.mesh.material.dispose();
+    ocean = null;
+  }
+  if (spectralOcean) {
+    scene.remove(spectralOcean.mesh);
+    spectralOcean.mesh.geometry.dispose();
+    spectralOcean.mesh.material.dispose();
+    spectralOcean = null;
+  }
+
+  if (mode === 'spectral') {
+    spectralOcean = createSpectralOcean({
+      hs: state.params.amplitude || 3.2,
+      tp: 1 / (state.params.frequency || 0.4),
+      dir: state.params.direction || 245,
+      N: 128,
+      L: 64,
+      windSpeed: state.params.windSpeed || 17.5,
+      windDir: state.params.direction || 245,
+    });
+    scene.add(spectralOcean.mesh);
+    return 'spectral';
+  } else {
+    ocean = createGerstnerOcean(state.params);
+    scene.add(ocean.mesh);
+    return 'gerstner';
+  }
+}
+
+createOcean('gerstner');
 
 // ── Batimetría 3D (Fase 2.1) ────────────────────────────────────────
 
@@ -81,17 +118,12 @@ loadBathymetry();
 
 let availableScenarios = [];
 
-/**
- * Carga la lista de escenarios disponibles desde data/scenarios/*.json
- * y popula el selector del DOM.
- */
 async function initScenarios() {
   try {
     availableScenarios = await loadScenariosList();
     populateScenarioSelector(availableScenarios);
 
     if (availableScenarios.length > 0) {
-      // Cargar el primer escenario por defecto
       await selectScenario(availableScenarios[0].id);
       console.log(`✅ ${availableScenarios.length} escenarios cargados`);
     } else {
@@ -102,9 +134,6 @@ async function initScenarios() {
   }
 }
 
-/**
- * Pobla el <select> de escenarios con las opciones disponibles.
- */
 function populateScenarioSelector(scenarios) {
   const select = document.getElementById('scenario-select');
   select.innerHTML = '';
@@ -117,10 +146,6 @@ function populateScenarioSelector(scenarios) {
   }
 }
 
-/**
- * Selecciona y carga un escenario por ID.
- * Lee el JSON, convierte a wave params, actualiza la escena y la UI.
- */
 async function selectScenario(id) {
   try {
     const sc = await loadScenarioFromId(id);
@@ -141,22 +166,16 @@ async function selectScenario(id) {
     document.getElementById('dir-slider').value = sc.wave.dir;
     document.getElementById('wind-slider').value = sc.wind.speed;
 
-    // Actualizar valores mostrados
     updateSliderLabels();
-
-    // Actualizar metadatos del escenario
     updateScenarioMeta(sc);
 
-    // Actualizar el océano
-    ocean.update(0, state.params);
+    // Actualizar el océano activo
+    updateOceanFromParams();
   } catch (err) {
     console.error(`❌ Error al cargar escenario "${id}":`, err.message);
   }
 }
 
-/**
- * Carga un escenario JSON desde su ID usando la ruta relativa.
- */
 async function loadScenarioFromId(id) {
   const response = await fetch(`../../data/scenarios/${id}.json`);
   if (!response.ok) {
@@ -164,7 +183,6 @@ async function loadScenarioFromId(id) {
   }
   const data = await response.json();
 
-  // Validación básica
   if (!data.wave || !data.wind) {
     throw new Error(`Escenario "${id}" no tiene campos wave/wind`);
   }
@@ -175,9 +193,6 @@ async function loadScenarioFromId(id) {
   return data;
 }
 
-/**
- * Actualiza el panel de metadatos con info del escenario activo.
- */
 function updateScenarioMeta(sc) {
   const metaEl = document.getElementById('scenario-meta');
   const dateStr = new Date(sc.time).toLocaleString('es-ES', {
@@ -191,9 +206,6 @@ function updateScenarioMeta(sc) {
     `<div><strong>Viento:</strong> ${sc.wind.speed.toFixed(1)} m/s desde ${sc.wind.dir}°</div>`;
 }
 
-/**
- * Actualiza los labels de los sliders con los valores actuales.
- */
 function updateSliderLabels() {
   const hs = parseFloat(document.getElementById('hs-slider').value);
   const tp = parseFloat(document.getElementById('tp-slider').value);
@@ -205,13 +217,37 @@ function updateSliderLabels() {
   document.getElementById('dir-val').textContent = dir.toFixed(0) + '°';
   document.getElementById('wind-val').textContent = wind.toFixed(1) + ' m/s';
 
-  // Si no hay escenario cargado, mostrar valores de sliders
   if (!state.scenarioMeta) {
     updateScenarioMeta({
       location: 'Personalizado',
       time: new Date().toISOString(),
       wave: { hs, tp, dir },
       wind: { speed: wind, dir: 0 },
+    });
+  }
+}
+
+// ── Actualizar océano desde parámetros ───────────────────────────────
+
+function updateOceanFromParams() {
+  const hs = parseFloat(document.getElementById('hs-slider').value);
+  const tp = parseFloat(document.getElementById('tp-slider').value);
+  const dir = parseFloat(document.getElementById('dir-slider').value);
+  const wind = parseFloat(document.getElementById('wind-slider').value);
+
+  state.params.amplitude = hs;
+  state.params.frequency = 1 / tp;
+  state.params.direction = dir;
+  state.params.windSpeed = wind;
+
+  if (state.oceanMode === 'gerstner' && ocean) {
+    ocean.update(0, state.params);
+  } else if (state.oceanMode === 'spectral' && spectralOcean) {
+    spectralOcean.update(0, {
+      amplitude: hs,
+      frequency: state.params.frequency,
+      direction: dir,
+      windSpeed: wind,
     });
   }
 }
@@ -227,18 +263,13 @@ document.getElementById('scenario-select').addEventListener('change', async (e) 
 
 function onSliderChange() {
   updateSliderLabels();
+  updateOceanFromParams();
 
   const hs = parseFloat(document.getElementById('hs-slider').value);
   const tp = parseFloat(document.getElementById('tp-slider').value);
   const dir = parseFloat(document.getElementById('dir-slider').value);
   const wind = parseFloat(document.getElementById('wind-slider').value);
 
-  state.params.amplitude = hs;
-  state.params.frequency = 1 / tp;
-  state.params.direction = dir;
-  state.params.windSpeed = wind;
-
-  // Si estamos en modo personalizado (sin escenario), actualizar meta
   if (!state.scenarioId) {
     updateScenarioMeta({
       location: 'Personalizado',
@@ -247,8 +278,6 @@ function onSliderChange() {
       wind: { speed: wind, dir: 0 },
     });
   }
-
-  ocean.update(0, state.params);
 }
 
 document.getElementById('hs-slider').addEventListener('input', onSliderChange);
@@ -273,11 +302,52 @@ document.getElementById('reset-cam').addEventListener('click', () => {
   controls.update();
 });
 
+// ── UI: Toggle modo océano (Gerstner ↔ Espectral) ───────────────────
+
+document.getElementById('ocean-mode-toggle').addEventListener('click', () => {
+  const modeEl = document.getElementById('ocean-mode-label');
+  const fpsEl = document.getElementById('fps');
+
+  if (state.oceanMode === 'gerstner') {
+    state.oceanMode = 'spectral';
+    modeEl.textContent = '🌊 Espectral';
+    fpsEl.textContent = 'Calculando FFT…';
+    fpsEl.className = 'warn';
+
+    // Crear océano espectral (puede tardar unos frames)
+    createOcean('spectral');
+
+    // Actualizar metadatos
+    updateScenarioMeta({
+      location: state.scenarioMeta?.location || 'Personalizado',
+      time: state.scenarioMeta?.time || new Date().toISOString(),
+      wave: {
+        hs: parseFloat(document.getElementById('hs-slider').value),
+        tp: parseFloat(document.getElementById('tp-slider').value),
+        dir: parseFloat(document.getElementById('dir-slider').value),
+      },
+      wind: { speed: parseFloat(document.getElementById('wind-slider').value), dir: 0 },
+    });
+
+    console.log('🔬 Modo espectral activado — JONSWAP + FFT 2D CPU');
+  } else {
+    state.oceanMode = 'gerstner';
+    modeEl.textContent = '🌊 Gerstner';
+    fpsEl.textContent = '-- FPS';
+    fpsEl.className = '';
+
+    createOcean('gerstner');
+
+    console.log('⚡ Modo Gerstner activado — Ondas Gerstner en shader');
+  }
+});
+
 // ── UI: FPS counter ─────────────────────────────────────────────────
 
 const fpsEl = document.getElementById('fps');
 let frameCount = 0;
 let fpsTime = 0;
+let fftFrameCount = 0; // contador de frames de FFT para modo espectral
 
 function updateFPS(time) {
   frameCount++;
@@ -295,6 +365,9 @@ function updateFPS(time) {
 document.addEventListener('keydown', async (e) => {
   if (e.key === 'r' || e.key === 'R') {
     document.getElementById('reset-cam').click();
+  }
+  if (e.key === 's' || e.key === 'S') {
+    document.getElementById('ocean-mode-toggle').click();
   }
   if (e.key >= '1' && e.key <= '9') {
     const idx = parseInt(e.key) - 1;
@@ -314,7 +387,13 @@ function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
 
-  ocean.update(t);
+  // Actualizar océano activo
+  if (state.oceanMode === 'gerstner' && ocean) {
+    ocean.update(t);
+  } else if (state.oceanMode === 'spectral' && spectralOcean) {
+    spectralOcean.update(t);
+  }
+
   controls.update();
   renderer.render(scene, camera);
 

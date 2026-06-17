@@ -2,6 +2,7 @@
   "name": "wave-three",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Visor marino 3D con Three.js, WebGPU y datos oceanográficos",
   "workspaces": [
     "apps/web-viewer",
