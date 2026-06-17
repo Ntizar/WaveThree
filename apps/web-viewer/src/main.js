@@ -7,8 +7,8 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGerstnerOcean } from '../../src/ocean/gerstner.js';
-import { createScene } from '../../src/scene/setup.js';
+import { createGerstnerOcean } from '../../../src/ocean/gerstner.js';
+import { createScene } from '../../../src/scene/setup.js';
 
 // ── Escenarios predefinidos ──
 

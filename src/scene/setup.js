@@ -75,22 +75,15 @@ export function createScene() {
   camera.position.set(30, 18, 30);
   camera.lookAt(0, 0, 0);
 
-  // ── Renderizador WebGPU / WebGL fallback ──
+  // ── Renderizador WebGL optimizado ──
+  // WebGPU estará disponible en una fase posterior cuando Three.js
+  // tenga soporte estable para compute shaders y el bundle webgpu.
 
-  let renderer;
-  if (navigator.gpu) {
-    try {
-      renderer = new THREE.WebGPURenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      console.log('🌊 WebGPU activo');
-    } catch {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-      console.log('🌊 WebGL fallback');
-    }
-  } else {
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    console.log('🌊 WebGL (WebGPU no disponible)');
-  }
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
