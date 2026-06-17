@@ -3,14 +3,16 @@
  *
  * Carga la escena, inicializa el océano, conecta la UI.
  * Fase 1.1: MVP visual mejorado con shader, escenarios, FPS.
+ * Fase 2.1: Batimetría 3D — heightmap loader, mesh por profundidad, demo sintética.
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGerstnerOcean } from '../../../src/ocean/gerstner.js';
 import { createScene } from '../../../src/scene/setup.js';
+import { loadAndCreateBathymetry } from '../../../src/bathymetry/index.js';
 
-// ── Escenarios predefinidos ──
+// ── Escenarios predefinidos ──────────────────────────────────────────
 
 const SCENARIOS = {
   temporal_2026_01_17_1200: {
@@ -35,7 +37,7 @@ const SCENARIOS = {
   },
 };
 
-// ── Inicialización ──
+// ── Inicialización ───────────────────────────────────────────────────
 
 const { scene, camera, renderer } = createScene();
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -47,7 +49,7 @@ controls.maxDistance = 120;
 controls.maxPolarAngle = Math.PI / 2.1;
 controls.update();
 
-// ── Estado ──
+// ── Estado ───────────────────────────────────────────────────────────
 
 const state = {
   scenarioId: 'temporal_2026_01_17_1200',
@@ -60,12 +62,51 @@ const state = {
   },
 };
 
-// ── Océano ──
+// ── Océano ───────────────────────────────────────────────────────────
 
 const ocean = createGerstnerOcean(state.params);
 scene.add(ocean.mesh);
 
-// ── Función para cargar escenario ──
+// ── Batimetría 3D (Fase 2.1) ────────────────────────────────────────
+
+let bathymetryMesh = null;
+
+async function loadBathymetry() {
+  try {
+    console.log('🌊 Cargando batimetría de demostración...');
+
+    // Cargar desde public/ (sirve tanto en dev como en dist)
+    const bathyUrl = '/demo-bathymetry.bin';
+
+    const mesh = await loadAndCreateBathymetry(bathyUrl, {
+      segW: 128,
+      segH: 128,
+      scaleX: 100,
+      scaleZ: 100,
+      verticalScale: 0.3,
+      maxDepth: 300,
+      scene,
+    });
+
+    // Posicionar la batimetría bajo el nivel del mar
+    // El océano está en y=0 (aprox), la batimetría debe estar por debajo
+    mesh.position.y = -2;
+    mesh.position.x = 0;
+    mesh.position.z = 0;
+
+    scene.add(mesh);
+    bathymetryMesh = mesh;
+
+    console.log('✅ Batimetría cargada:', mesh.userData.bathymetry);
+  } catch (err) {
+    console.warn('⚠️ No se pudo cargar la batimetría:', err.message);
+  }
+}
+
+// Cargar batimetría asíncronamente
+loadBathymetry();
+
+// ── Función para cargar escenario ────────────────────────────────────
 
 function loadScenario(id) {
   const sc = SCENARIOS[id];
@@ -95,14 +136,14 @@ function loadScenario(id) {
   ocean.update(0, state.params);
 }
 
-// ── UI: Selector de escenarios ──
+// ── UI: Selector de escenarios ──────────────────────────────────────
 
 document.getElementById('scenario-select').addEventListener('change', (e) => {
   loadScenario(e.target.value);
   document.getElementById('loading').classList.add('hidden');
 });
 
-// ── UI: Sliders ──
+// ── UI: Sliders ─────────────────────────────────────────────────────
 
 function onSliderChange() {
   const hs = parseFloat(document.getElementById('hs-slider').value);
@@ -130,7 +171,7 @@ document.getElementById('tp-slider').addEventListener('input', onSliderChange);
 document.getElementById('dir-slider').addEventListener('input', onSliderChange);
 document.getElementById('wind-slider').addEventListener('input', onSliderChange);
 
-// ── UI: Panel toggle ──
+// ── UI: Panel toggle ────────────────────────────────────────────────
 
 document.getElementById('panel-toggle').addEventListener('click', () => {
   const panel = document.getElementById('panel');
@@ -139,7 +180,7 @@ document.getElementById('panel-toggle').addEventListener('click', () => {
     panel.classList.contains('collapsed') ? '▶' : '◀';
 });
 
-// ── UI: Reset cámara ──
+// ── UI: Reset cámara ────────────────────────────────────────────────
 
 document.getElementById('reset-cam').addEventListener('click', () => {
   camera.position.set(30, 18, 30);
@@ -147,7 +188,7 @@ document.getElementById('reset-cam').addEventListener('click', () => {
   controls.update();
 });
 
-// ── UI: FPS counter ──
+// ── UI: FPS counter ─────────────────────────────────────────────────
 
 const fpsEl = document.getElementById('fps');
 let frameCount = 0;
@@ -164,7 +205,7 @@ function updateFPS(time) {
   }
 }
 
-// ── Keyboard shortcuts ──
+// ── Keyboard shortcuts ──────────────────────────────────────────────
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'r' || e.key === 'R') {
@@ -180,7 +221,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ── Animación ──
+// ── Animación ───────────────────────────────────────────────────────
 
 const clock = new THREE.Clock();
 
@@ -197,7 +238,7 @@ function animate() {
 
 animate();
 
-// ── Ocultar loading ──
+// ── Ocultar loading ─────────────────────────────────────────────────
 
 setTimeout(() => {
   document.getElementById('loading').classList.add('hidden');

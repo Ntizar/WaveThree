@@ -9,7 +9,8 @@ import * as THREE from 'three';
 
 export function createScene() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a1628);
+  // Fondo degradado marino (se maneja con el shader del cielo)
+  scene.background = null;
 
   // ── Cielo degradado con shader ──
 
