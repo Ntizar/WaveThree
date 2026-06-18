@@ -40,9 +40,55 @@
     }
     #loading .status { font-size: 13px; color: #4a7aaa; margin-top: 8px; }
 
+    /* ── Cabecera fija superior ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      height: 48px;
+      background: rgba(8, 16, 30, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(96, 165, 250, 0.1);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+    }
+    #header .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 16px; font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    #header .logo .wave-icon { font-size: 20px; -webkit-text-fill-color: #38bdf8; }
+    #header .logo .version {
+      font-size: 10px; font-weight: 400;
+      -webkit-text-fill-color: #4a6a8a;
+      background: rgba(96,165,250,0.1);
+      padding: 2px 6px; border-radius: 4px;
+    }
+    #header .nav-links {
+      display: flex; gap: 12px; align-items: center;
+    }
+    #header .nav-links a {
+      color: #5a8aba; text-decoration: none; font-size: 12px;
+      transition: color 0.2s;
+    }
+    #header .nav-links a:hover { color: #60a5fa; }
+    #header .shortcuts-hint {
+      font-size: 10px; color: #3a5a7a;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #header .shortcuts-hint kbd {
+      background: rgba(96,165,250,0.1);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 3px; padding: 1px 5px;
+      font-size: 9px; font-family: 'Courier New', monospace;
+      color: #6a8aaa;
+    }
+
     /* ── Panel principal glassmorphism ── */
     #panel {
-      position: fixed; top: 16px; left: 16px; z-index: 10;
+      position: fixed; top: 64px; left: 16px; z-index: 10;
       width: 280px;
       background: rgba(8, 16, 30, 0.85);
       backdrop-filter: blur(16px);
@@ -53,7 +99,7 @@
       color: #c8d8e8;
       font-size: 13px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      max-height: calc(100vh - 32px);
+      max-height: calc(100vh - 80px);
       overflow-y: auto;
       transition: transform 0.3s ease;
     }
@@ -139,7 +185,7 @@
 
     /* ── FPS ── */
     #fps {
-      position: fixed; top: 16px; right: 16px; z-index: 10;
+      position: fixed; top: 56px; right: 16px; z-index: 10;
       font-size: 12px; font-weight: 600; font-family: 'Courier New', monospace;
       background: rgba(8, 16, 30, 0.6);
       backdrop-filter: blur(8px);
@@ -163,6 +209,7 @@
       padding: 10px 16px;
       color: #7a9aba; cursor: pointer;
       font-size: 12px; transition: all 0.2s;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     }
     #reset-cam:hover {
       background: rgba(96,165,250,0.15);
@@ -179,6 +226,7 @@
       font-size: 12px; cursor: pointer;
       text-align: center; transition: all 0.2s;
       font-weight: 600;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     }
     #ocean-mode-toggle:hover {
       background: rgba(96,165,250,0.15);
@@ -194,6 +242,7 @@
       font-size: 12px; cursor: pointer;
       text-align: center; transition: all 0.2s;
       font-weight: 600;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     }
     #structures-toggle:hover {
       background: rgba(249, 115, 22, 0.2);
@@ -202,12 +251,12 @@
 
     /* ── Footer ── */
     #footer {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
       z-index: 10;
       font-size: 11px; color: #3a5a7a;
       background: rgba(8, 16, 30, 0.5);
       backdrop-filter: blur(8px);
-      padding: 6px 16px;
+      padding: 4px 16px;
       border-radius: 20px;
       border: 1px solid rgba(96,165,250,0.06);
       white-space: nowrap;
@@ -215,11 +264,36 @@
     #footer a { color: #5a8aba; text-decoration: none; }
     #footer a:hover { color: #60a5fa; }
 
+    /* ── Animación fadeInOut para toasts ── */
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(10px); }
+      15% { opacity: 1; transform: translateY(0); }
+      85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
-      #panel { width: 240px; left: 8px; top: 8px; padding: 12px 14px; font-size: 12px; }
-      #fps { top: 8px; right: 8px; font-size: 10px; }
-      #footer { font-size: 10px; padding: 4px 12px; }
+      #header { height: 40px; padding: 0 12px; }
+      #header .shortcuts-hint { display: none; }
+      #header .logo { font-size: 14px; }
+      #panel {
+        width: calc(100vw - 16px);
+        left: 8px; top: 52px; padding: 12px 14px;
+        font-size: 12px; max-height: calc(100vh - 60px);
+      }
+      #panel.collapsed { transform: translateY(-100%); }
+      #fps { top: 48px; right: 8px; font-size: 10px; }
+      #reset-cam { bottom: 16px; right: 16px; padding: 8px 12px; font-size: 11px; }
+      #footer { font-size: 10px; padding: 4px 12px; bottom: 4px; }
+    }
+
+    @media (min-width: 641px) and (orientation: landscape) and (max-height: 500px) {
+      /* Landscape en móvil: panel compacto */
+      #panel {
+        width: 220px; top: 52px; padding: 10px 14px;
+      }
+      .slider-group label { font-size: 11px; }
     }
   </style>
 </head>
@@ -231,6 +305,25 @@
     <div class="bar-container"><div class="bar"></div></div>
     <div class="status">Iniciando motor 3D…</div>
   </div>
+
+  <!-- Cabecera fija -->
+  <header id="header">
+    <a href="https://github.com/Ntizar/WaveThree" target="_blank" class="logo">
+      <span class="wave-icon">🌊</span>
+      WaveThree
+      <span class="version">v5.0</span>
+    </a>
+    <div class="shortcuts-hint">
+      <kbd>1</kbd>-<kbd>4</kbd> Escenarios &nbsp;
+      <kbd>R</kbd> Cámara &nbsp;
+      <kbd>E</kbd> Exportar &nbsp;
+      <kbd>S</kbd> Motor &nbsp;
+      <kbd>B</kbd> Estructuras
+    </div>
+    <div class="nav-links">
+      <a href="https://github.com/Ntizar/WaveThree" target="_blank" title="GitHub">⬡ GitHub</a>
+    </div>
+  </header>
 
   <!-- FPS counter -->
   <div id="fps">-- FPS</div>

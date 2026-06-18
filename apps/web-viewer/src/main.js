@@ -16,6 +16,7 @@ import { loadScenariosList, scenarioToWaveParams } from '../../../src/loaders/in
 import { createBreakwater, createPier } from '../../../src/structures/index.js';
 import { createFoamSystem } from '../../../src/structures/foam.js';
 import { createSpraySystem } from '../../../src/structures/splash.js';
+import { ExportPanel } from '../../../src/ui/ExportPanel.js';
 
 // ── Inicialización escena ────────────────────────────────────────────
 
@@ -438,9 +439,28 @@ function updateFPS(time) {
   }
 }
 
-// ── Keyboard shortcuts ──────────────────────────────────────────────
+// ── ExportPanel (Fase 5) ─────────────────────────────────────────────
+
+const exportPanel = new ExportPanel({
+  renderer,
+  getState: () => ({
+    scenarioId: state.scenarioId,
+    scenarioMeta: state.scenarioMeta,
+    params: state.params,
+    oceanMode: state.oceanMode,
+    showStructures: state.showStructures,
+  }),
+  scenarioMeta: state.scenarioMeta,
+  baseURL: window.location.origin,
+});
+
+// ── Keyboard shortcuts (Fase 5: añadida E para exportar) ─────────────
 
 document.addEventListener('keydown', async (e) => {
+  // No procesar atajos si estamos en un input/select
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
   if (e.key === 'r' || e.key === 'R') {
     document.getElementById('reset-cam').click();
   }
@@ -449,6 +469,9 @@ document.addEventListener('keydown', async (e) => {
   }
   if (e.key === 'b' || e.key === 'B') {
     document.getElementById('structures-toggle').click();
+  }
+  if (e.key === 'e' || e.key === 'E') {
+    exportPanel._exportPNG();
   }
   if (e.key >= '1' && e.key <= '9') {
     const idx = parseInt(e.key) - 1;
@@ -512,4 +535,10 @@ setTimeout(() => {
 
 initScenarios();
 
-console.log('🌊 WaveThree — Visor marino 3D iniciado (Fase 4: estructuras + espuma + spray)');
+// Montar ExportPanel tras cargar escenarios
+initScenarios().then(() => {
+  exportPanel.updateScenarioMeta(state.scenarioMeta);
+  exportPanel.mount();
+});
+
+console.log('🌊 WaveThree — Visor marino 3D iniciado (Fase 5: exportación, atajos, UI mejorada)');
