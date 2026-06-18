@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WaveThree — Visor Marino 3D</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0a0e1a; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    canvas { display: block; }
+
+    /* ── Loading screen ── */
+    #loading {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a0e1a 0%, #0a1a2a 50%, #0a2a3a 100%);
+      color: #60a5fa;
+      font-size: 22px;
+      font-weight: 300;
+      transition: opacity 0.8s ease, transform 0.8s ease;
+      letter-spacing: 2px;
+    }
+    #loading.hidden { opacity: 0; transform: scale(1.05); pointer-events: none; }
+    #loading .logo { font-size: 48px; margin-bottom: 12px; }
+    #loading .bar-container {
+      width: 200px; height: 3px;
+      background: rgba(96, 165, 250, 0.2);
+      border-radius: 2px; margin-top: 20px; overflow: hidden;
+    }
+    #loading .bar {
+      width: 30%; height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #60a5fa);
+      border-radius: 2px;
+      animation: loadingBar 1.5s ease-in-out infinite;
+    }
+    @keyframes loadingBar {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+    #loading .status { font-size: 13px; color: #4a7aaa; margin-top: 8px; }
+
+    /* ── Cabecera fija superior ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      height: 48px;
+      background: rgba(8, 16, 30, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(96, 165, 250, 0.1);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+    }
+    #header .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 16px; font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    #header .logo .wave-icon { font-size: 20px; -webkit-text-fill-color: #38bdf8; }
+    #header .logo .version {
+      font-size: 10px; font-weight: 400;
+      -webkit-text-fill-color: #4a6a8a;
+      background: rgba(96,165,250,0.1);
+      padding: 2px 6px; border-radius: 4px;
+    }
+    #header .nav-links {
+      display: flex; gap: 12px; align-items: center;
+    }
+    #header .nav-links a {
+      color: #5a8aba; text-decoration: none; font-size: 12px;
+      transition: color 0.2s;
+    }
+    #header .nav-links a:hover { color: #60a5fa; }
+    #header .shortcuts-hint {
+      font-size: 10px; color: #3a5a7a;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #header .shortcuts-hint kbd {
+      background: rgba(96,165,250,0.1);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 3px; padding: 1px 5px;
+      font-size: 9px; font-family: 'Courier New', monospace;
+      color: #6a8aaa;
+    }
+
+    /* ── Panel principal glassmorphism ── */
+    #panel {
+      position: fixed; top: 64px; left: 16px; z-index: 10;
+      width: 280px;
+      background: rgba(8, 16, 30, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(96, 165, 250, 0.12);
+      border-radius: 14px;
+      padding: 18px 20px;
+      color: #c8d8e8;
+      font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+    }
+    #panel.collapsed { transform: translateX(-300px); }
+    #panel::-webkit-scrollbar { width: 4px; }
+    #panel::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 2px; }
+
+    #panel .header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    #panel .header h1 {
+      font-size: 17px; font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+    #panel .header .sub {
+      font-size: 10px; color: #4a6a8a;
+      -webkit-text-fill-color: #4a6a8a;
+      margin-top: -2px;
+    }
+    #panel .toggle-btn {
+      background: none; border: 1px solid rgba(96,165,250,0.2);
+      color: #6a8aaa; cursor: pointer; padding: 4px 8px;
+      border-radius: 6px; font-size: 14px;
+      transition: all 0.2s;
+    }
+    #panel .toggle-btn:hover { background: rgba(96,165,250,0.1); color: #60a5fa; }
+
+    /* ── Secciones ── */
+    .section { margin-bottom: 14px; }
+    .section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #4a6a8a; margin-bottom: 8px; font-weight: 600;
+    }
+    .section-divider {
+      height: 1px; background: linear-gradient(90deg, rgba(96,165,250,0.15), transparent);
+      margin: 10px 0 12px 0;
+    }
+
+    /* ── Sliders ── */
+    .slider-group { margin-bottom: 8px; }
+    .slider-group label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #7a9aba; margin-bottom: 2px;
+    }
+    .slider-group label .val { color: #60a5fa; font-weight: 600; }
+    .slider-group input[type="range"] {
+      width: 100%; height: 4px;
+      -webkit-appearance: none; appearance: none;
+      background: linear-gradient(90deg, #1a3a5a, #3a7aaa);
+      border-radius: 2px; outline: none;
+      accent-color: #38bdf8;
+    }
+    .slider-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      background: radial-gradient(circle, #60a5fa, #3a7aaa);
+      border-radius: 50%; cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.15);
+      box-shadow: 0 0 8px rgba(56,189,248,0.3);
+    }
+
+    /* ── Selector escenarios ── */
+    .scenario-select {
+      width: 100%; padding: 8px 10px;
+      background: rgba(96,165,250,0.08);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 8px; color: #c8d8e8;
+      font-size: 12px; outline: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .scenario-select:focus { border-color: #60a5fa; }
+    .scenario-select option { background: #0a1a2a; color: #c8d8e8; }
+    .scenario-meta {
+      margin-top: 6px; padding: 6px 8px;
+      background: rgba(96,165,250,0.05);
+      border-radius: 6px; font-size: 11px; color: #6a8aaa;
+      line-height: 1.6;
+    }
+    .scenario-meta strong { color: #8abaea; }
+
+    /* ── FPS ── */
+    #fps {
+      position: fixed; top: 56px; right: 16px; z-index: 10;
+      font-size: 12px; font-weight: 600; font-family: 'Courier New', monospace;
+      background: rgba(8, 16, 30, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(96,165,250,0.1);
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #4a8aba;
+      transition: color 0.3s;
+    }
+    #fps.good { color: #4ade80; }
+    #fps.warn { color: #facc15; }
+    #fps.bad { color: #f87171; }
+
+    /* ── Botón reset cámara ── */
+    #reset-cam {
+      position: fixed; bottom: 24px; right: 24px; z-index: 10;
+      background: rgba(8, 16, 30, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 10px;
+      padding: 10px 16px;
+      color: #7a9aba; cursor: pointer;
+      font-size: 12px; transition: all 0.2s;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #reset-cam:hover {
+      background: rgba(96,165,250,0.15);
+      color: #60a5fa;
+      border-color: rgba(96,165,250,0.3);
+    }
+
+    /* ── Modo toggle ── */
+    #ocean-mode-toggle {
+      width: 100%; padding: 8px 10px;
+      background: rgba(96,165,250,0.08);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 8px; color: #60a5fa;
+      font-size: 12px; cursor: pointer;
+      text-align: center; transition: all 0.2s;
+      font-weight: 600;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #ocean-mode-toggle:hover {
+      background: rgba(96,165,250,0.15);
+      border-color: rgba(96,165,250,0.3);
+    }
+
+    /* ── Botón estructuras (Fase 4) ── */
+    #structures-toggle {
+      width: 100%; padding: 8px 10px;
+      background: rgba(249, 115, 22, 0.1);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+      border-radius: 8px; color: #f97316;
+      font-size: 12px; cursor: pointer;
+      text-align: center; transition: all 0.2s;
+      font-weight: 600;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #structures-toggle:hover {
+      background: rgba(249, 115, 22, 0.2);
+      border-color: rgba(249, 115, 22, 0.4);
+    }
+
+    /* ── Footer ── */
+    #footer {
+      position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+      z-index: 10;
+      font-size: 11px; color: #3a5a7a;
+      background: rgba(8, 16, 30, 0.5);
+      backdrop-filter: blur(8px);
+      padding: 4px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(96,165,250,0.06);
+      white-space: nowrap;
+    }
+    #footer a { color: #5a8aba; text-decoration: none; }
+    #footer a:hover { color: #60a5fa; }
+
+    /* ── Animación fadeInOut para toasts ── */
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(10px); }
+      15% { opacity: 1; transform: translateY(0); }
+      85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      #header { height: 40px; padding: 0 12px; }
+      #header .shortcuts-hint { display: none; }
+      #header .logo { font-size: 14px; }
+      #panel {
+        width: calc(100vw - 16px);
+        left: 8px; top: 52px; padding: 12px 14px;
+        font-size: 12px; max-height: calc(100vh - 60px);
+      }
+      #panel.collapsed { transform: translateY(-100%); }
+      #fps { top: 48px; right: 8px; font-size: 10px; }
+      #reset-cam { bottom: 16px; right: 16px; padding: 8px 12px; font-size: 11px; }
+      #footer { font-size: 10px; padding: 4px 12px; bottom: 4px; }
+    }
+
+    @media (min-width: 641px) and (orientation: landscape) and (max-height: 500px) {
+      /* Landscape en móvil: panel compacto */
+      #panel {
+        width: 220px; top: 52px; padding: 10px 14px;
+      }
+      .slider-group label { font-size: 11px; }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-B8QbuV6S.js"></script>
+</head>
+<body>
+  <!-- Loading -->
+  <div id="loading">
+    <div class="logo">🌊</div>
+    <div>WaveThree</div>
+    <div class="bar-container"><div class="bar"></div></div>
+    <div class="status">Iniciando motor 3D…</div>
+  </div>
+
+  <!-- Cabecera fija -->
+  <header id="header">
+    <a href="https://github.com/Ntizar/WaveThree" target="_blank" class="logo">
+      <span class="wave-icon">🌊</span>
+      WaveThree
+      <span class="version">v5.0</span>
+    </a>
+    <div class="shortcuts-hint">
+      <kbd>1</kbd>-<kbd>4</kbd> Escenarios &nbsp;
+      <kbd>R</kbd> Cámara &nbsp;
+      <kbd>E</kbd> Exportar &nbsp;
+      <kbd>S</kbd> Motor &nbsp;
+      <kbd>B</kbd> Estructuras
+    </div>
+    <div class="nav-links">
+      <a href="https://github.com/Ntizar/WaveThree" target="_blank" title="GitHub">⬡ GitHub</a>
+    </div>
+  </header>
+
+  <!-- FPS counter -->
+  <div id="fps">-- FPS</div>
+
+  <!-- Panel -->
+  <div id="panel">
+    <div class="header">
+      <div>
+        <h1>WaveThree</h1>
+        <div class="sub">visor marino · three.js + webgpu</div>
+      </div>
+      <button class="toggle-btn" id="panel-toggle" title="Ocultar panel">◀</button>
+    </div>
+
+    <!-- Escenarios -->
+    <div class="section">
+      <div class="section-title">Escenario</div>
+      <select class="scenario-select" id="scenario-select">
+        <option value="temporal_2026_01_17_1200">Temporal enero 2026</option>
+        <option value="swell_atlantic">Mar de fondo atlántico</option>
+        <option value="calm_day">Día en calma</option>
+        <option value="storm_extreme">Temporal extremo</option>
+        <option value="port_scene">Puerto con dique</option>
+      </select>
+      <div class="scenario-meta" id="scenario-meta">
+        <strong>📍 Cantábrico</strong> · 17/01/2026 12:00<br>
+        <strong>Hs:</strong> 3.2 m · <strong>Tp:</strong> 8.7 s · <strong>Dir:</strong> 245°<br>
+        <strong>Viento:</strong> 17.5 m/s desde 240°
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Oleaje -->
+    <div class="section">
+      <div class="section-title">Oleaje</div>
+      <div class="slider-group">
+        <label>Altura (Hs) <span class="val" id="hs-val">3.2 m</span></label>
+        <input type="range" id="hs-slider" min="0" max="8" step="0.1" value="3.2" />
+      </div>
+      <div class="slider-group">
+        <label>Periodo (Tp) <span class="val" id="tp-val">8.7 s</span></label>
+        <input type="range" id="tp-slider" min="1" max="18" step="0.1" value="8.7" />
+      </div>
+      <div class="slider-group">
+        <label>Dirección <span class="val" id="dir-val">245°</span></label>
+        <input type="range" id="dir-slider" min="0" max="360" step="1" value="245" />
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Viento -->
+    <div class="section">
+      <div class="section-title">Viento</div>
+      <div class="slider-group">
+        <label>Velocidad <span class="val" id="wind-val">17.5 m/s</span></label>
+        <input type="range" id="wind-slider" min="0" max="40" step="0.5" value="17.5" />
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Modo océano -->
+    <div class="section">
+      <div class="section-title">Motor oceánico</div>
+      <button id="ocean-mode-toggle">🌊 <span id="ocean-mode-label">Gerstner</span></button>
+      <div style="font-size:10px;color:#4a6a8a;margin-top:4px;">Tecla: S para alternar</div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Estructuras (Fase 4) -->
+    <div class="section">
+      <div class="section-title">Estructuras costeras</div>
+      <button id="structures-toggle">🏗️ Ocultar estructuras</button>
+      <div style="font-size:10px;color:#4a6a8a;margin-top:4px;">Tecla: B para alternar</div>
+    </div>
+  </div>
+
+  <!-- Reset camera -->
+  <button id="reset-cam">⟲ Reset cámara</button>
+
+  <!-- Footer -->
+  <div id="footer">
+    🌊 <a href="https://github.com/Ntizar/WaveThree" target="_blank">WaveThree</a> ·
+    Hecho con ❤️ por David Antizar
+  </div>
+
+</body>
+</html>
